@@ -53,6 +53,6 @@ POST /ask (key hợp lệ)      200  user_id=cp5-smoke, history_length=0, có an
 ## Ảnh minh chứng
 
 - `screenshots/dashboard.png`: Railway project hiển thị agent và Redis.
-- `screenshots/health.png`: public URL `/health` và kết quả 200.
+- `screenshots/health.png`: public URL `/health` và phản hồi `status: ok`.
 
-Hai ảnh này cần được chụp trực tiếp từ trình duyệt đã đăng nhập Railway trước khi nộp bài.
+Hai ảnh trên đã được chụp từ Railway và URL công khai sau khi deploy. Mã HTTP 200 của `/health` được xác nhận bằng lệnh kiểm tra và `tests/test_cp5.py`.
