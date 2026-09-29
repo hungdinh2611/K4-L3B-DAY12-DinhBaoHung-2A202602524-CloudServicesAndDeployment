@@ -1,101 +1,58 @@
-# Thông Tin Deploy — Checkpoint 5
+# Triển khai CP5 — Railway
 
-> Điền file này sau khi deploy xong. `pytest tests/test_cp5.py` đọc file này
-> để tìm địa chỉ service của bạn và gọi thử.
->
-> **Chỉ ghi TÊN biến môi trường, tuyệt đối không dán giá trị API key vào đây.**
-> Repo này công khai — dán khóa vào là mất khóa.
-
-## Thông Tin Học Viên
+## Thông tin học viên
 
 | Mục | Nội dung |
-|-----|----------|
-| Họ và tên | (điền họ tên) |
-| Mã học viên | (điền mã học viên) |
-| Repo | (điền link repo K4-L3B-DAY12-HoVaTen-MSSV-CloudServicesAndDeployment) |
+|---|---|
+| Họ và tên | Đinh Bảo Hưng |
+| Mã học viên | 2A202602524 |
+| Repo | https://github.com/hungdinh2611/K4-L3B-DAY12-DinhBaoHung-2A202602524-CloudServicesAndDeployment |
 
 ## Service
 
 | Mục | Nội dung |
-|-----|----------|
-| Public URL | https://TODO-thay-bang-url-that.up.railway.app |
-| Platform | Railway / Render / Cloud Run — (điền platform bạn dùng) |
-| Ngày deploy | (điền ngày) |
+|---|---|
+| Platform | Railway (project `day12-agent-dinhbaohung`) |
+| Ngày deploy | 2026-09-29 |
+| Public URL | https://day12-agent-production-8ce2.up.railway.app |
+| Dashboard | https://railway.com/project/95191ca4-1152-4a5f-8c32-96fd9aee4879 |
+| Redis | Railway Redis service trong cùng project |
 
-## Biến Môi Trường Đã Set Trên Cloud
+## Biến môi trường trên Railway
 
-Ghi tên biến và **nguồn giá trị**, không ghi giá trị:
+| Biến | Nguồn |
+|---|---|
+| `AGENT_API_KEY` | Secret đặt trong Railway Variables qua stdin của CLI; không lưu trong repo |
+| `REDIS_URL` | Reference tới `Redis.REDIS_URL` trong cùng project |
+| `RATE_LIMIT_PER_MINUTE` | Cấu hình service: 10 |
+| `MONTHLY_BUDGET_USD` | Cấu hình service: 10.0 |
+| `LOG_LEVEL` | Cấu hình service: INFO |
+| `PORT` | Đọc từ môi trường Railway nếu có; Dockerfile dùng 8000 khi không được cấp |
 
-| Biến | Đã set | Ghi chú |
-|------|--------|---------|
-| `PORT` | ✅ | platform tự gán |
-| `AGENT_API_KEY` | ✅ | đặt trong dashboard, không nằm trong repo |
-| `REDIS_URL` | ✅ | (điền: Redis add-on của platform / Upstash / ...) |
-| `RATE_LIMIT_PER_MINUTE` | ✅ | 10 |
-| `MONTHLY_BUDGET_USD` | ✅ | 10.0 |
-| `LOG_LEVEL` | ✅ | INFO |
-
-## Lệnh Kiểm Tra
-
-Thay `<URL>` bằng Public URL ở trên:
+## Kiểm tra URL thật
 
 ```bash
-# 1. Liveness — mong đợi 200 {"status":"ok"}
-curl -i <URL>/health
-
-# 2. Readiness — mong đợi 200 {"status":"ready"} (đã nối được Redis)
-curl -i <URL>/ready
-
-# 3. Không có API key — mong đợi 401
-curl -i -X POST <URL>/ask \
-  -H "Content-Type: application/json" \
-  -d '{"question":"Hello"}'
-
-# 4. Có API key — mong đợi 200 kèm câu trả lời
-curl -i -X POST <URL>/ask \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: $AGENT_API_KEY" \
-  -H "X-User-Id: sv-test" \
-  -d '{"question":"Deploy là gì?"}'
-
-# 5. Rate limit — gọi 15 lần, những lần cuối phải trả 429
-for i in $(seq 1 15); do
-  curl -s -o /dev/null -w "%{http_code} " -X POST <URL>/ask \
-    -H "Content-Type: application/json" \
-    -H "X-API-Key: $AGENT_API_KEY" \
-    -H "X-User-Id: sv-test" \
-    -d '{"question":"test"}'
-done; echo
+URL=https://day12-agent-production-8ce2.up.railway.app
+curl -i "$URL/health"
+curl -i "$URL/ready"
+curl -i -X POST "$URL/ask" -H "Content-Type: application/json" -d '{"question":"Hello"}'
+# Để thử request hợp lệ, nạp AGENT_API_KEY từ môi trường cục bộ; không in giá trị.
+curl -i -X POST "$URL/ask" -H "Content-Type: application/json" -H "X-API-Key: $AGENT_API_KEY" -H "X-User-Id: cp5-smoke" -d '{"question":"Deploy la gi?"}'
 ```
 
-## Kết Quả Chạy Thật
+Kết quả kiểm tra thực tế ngày 2026-09-29:
 
-Dán output của các lệnh trên vào đây:
-
+```text
+GET /health                 200  {"status":"ok","service":"day12-agent","version":"1.0.0"}
+GET /ready                  200  {"status":"ready","redis":true}
+POST /ask (không có key)    401  {"detail":"invalid or missing API key"}
+POST /ask (key hợp lệ)      200  user_id=cp5-smoke, history_length=0, có answer
+15 POST /ask liên tiếp      200 x 10, sau đó 429 x 5 (user thử riêng)
 ```
-(điền output)
-```
 
-## Ảnh Chụp Màn Hình
+## Ảnh minh chứng
 
-Đặt ảnh trong thư mục `screenshots/`:
+- `screenshots/dashboard.png`: Railway project hiển thị agent và Redis.
+- `screenshots/health.png`: public URL `/health` và kết quả 200.
 
-- `screenshots/dashboard.png` — trang quản lý service trên platform
-- `screenshots/health.png` — kết quả gọi `/health` từ trình duyệt hoặc curl
-
----
-
-## Nếu Dùng Phương Án Dự Phòng
-
-Không đăng ký được tài khoản cloud? Vẫn nộp được bài, nhưng CP5 tối đa 60% điểm:
-
-1. Đặt `LOCAL_FALLBACK=true` trong `.env`
-2. Chạy `docker compose up -d` rồi kiểm tra `docker compose ps`
-3. Chụp màn hình vào `screenshots/`
-4. Chạy `pytest tests/test_cp5.py -v` — bộ test sẽ tự chuyển sang kiểm tra
-   `http://localhost:8000`
-5. Ghi rõ lý do không deploy được vào phần dưới đây:
-
-```
-(điền lý do nếu dùng phương án dự phòng, ngược lại xóa mục này)
-```
+Hai ảnh này cần được chụp trực tiếp từ trình duyệt đã đăng nhập Railway trước khi nộp bài.
