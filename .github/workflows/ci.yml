@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Run local checkpoint tests
+        env:
+          AGENT_API_KEY: ci-dummy
+          REDIS_URL: fake://
+        run: python -m pytest tests/ --ignore=tests/test_cp5.py --ignore=tests/test_bonus_cicd.py -v
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Docker image
+        run: docker build -t day12-agent:ci .
+
+  deploy:
+    needs: [test, build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Deploy to Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: npx --yes @railway/cli@5.63.1 up --project 95191ca4-1152-4a5f-8c32-96fd9aee4879 --environment production --service day12-agent
+      - name: Check public health endpoint
+        run: curl --retry 6 --retry-delay 5 --retry-all-errors -fsS https://day12-agent-production-8ce2.up.railway.app/health
